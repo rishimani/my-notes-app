@@ -1,13 +1,44 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   try {
-    console.log("GET /api/notes - Fetching all notes");
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
 
-    const notes = await prisma.note.findMany();
+    // If no session, return unauthorized
+    if (!session || !session.user?.email) {
+      console.log("Unauthorized attempt to fetch notes - No valid session");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    console.log(`Found ${notes.length} notes`);
+    console.log(
+      `GET /api/notes - Fetching notes for user: ${session.user.email}`
+    );
+
+    // Get the user from the database or create if not exists
+    const user = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {},
+      create: {
+        email: session.user.email,
+        name: session.user.name || null,
+      },
+    });
+
+    // Fetch only notes belonging to the current user
+    const notes = await prisma.note.findMany({
+      where: {
+        userId: user.id,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    console.log(`Found ${notes.length} notes for user ${user.id}`);
     return NextResponse.json(notes);
   } catch (error: any) {
     console.error("Error fetching notes:", error);
@@ -23,7 +54,28 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    console.log("POST /api/notes - Creating a new note");
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+
+    // If no session, return unauthorized
+    if (!session || !session.user?.email) {
+      console.log("Unauthorized attempt to create note - No valid session");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    console.log(
+      `POST /api/notes - Creating a new note for user: ${session.user.email}`
+    );
+
+    // Get the user from the database or create if not exists
+    const user = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {},
+      create: {
+        email: session.user.email,
+        name: session.user.name || null,
+      },
+    });
 
     const body = await request.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
@@ -37,19 +89,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate userId
-    if (!body.userId) {
-      console.log("Validation failed: Missing userId");
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
-    }
-
     console.log("Creating note in database with data:", {
       title: body.title,
       content: body.content,
-      userId: body.userId,
+      userId: user.id,
       reminderDate: body.reminderDate,
       reminderTime: body.reminderTime,
     });
@@ -58,7 +101,7 @@ export async function POST(request: Request) {
       data: {
         title: body.title,
         content: body.content,
-        userId: body.userId,
+        userId: user.id,
         reminderDate: body.reminderDate,
         reminderTime: body.reminderTime,
       },

@@ -11,7 +11,7 @@ import Modal from "@/components/Modal";
 export default function NoteSinglePage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [note, setNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,14 @@ export default function NoteSinglePage() {
   }>({ noteId: "", status: "idle" });
 
   useEffect(() => {
+    // Redirect to home if not authenticated
+    if (status === "loading") return;
+
+    if (!session) {
+      router.push("/");
+      return;
+    }
+
     const fetchNote = async () => {
       if (!params.id) return;
 
@@ -31,7 +39,11 @@ export default function NoteSinglePage() {
         const response = await fetch(`/api/notes/${params.id}`);
 
         if (!response.ok) {
-          if (response.status === 404) {
+          if (response.status === 401) {
+            // Unauthorized - redirect to sign in
+            router.push("/auth/signin");
+            return;
+          } else if (response.status === 404) {
             setError("Note not found");
           } else {
             setError("Failed to load note");
@@ -50,9 +62,14 @@ export default function NoteSinglePage() {
     };
 
     fetchNote();
-  }, [params.id]);
+  }, [params.id, session, status, router]);
 
   const handleUpdateNote = async (noteData: Partial<Note>) => {
+    if (!session) {
+      router.push("/auth/signin");
+      return Promise.reject(new Error("Please sign in to update notes"));
+    }
+
     if (!noteData.id) return Promise.reject(new Error("Note ID is required"));
 
     try {
@@ -79,6 +96,11 @@ export default function NoteSinglePage() {
   };
 
   const handleDeleteNote = async (id: string) => {
+    if (!session) {
+      router.push("/auth/signin");
+      return Promise.reject(new Error("Please sign in to delete notes"));
+    }
+
     try {
       const response = await fetch(`/api/notes/${id}`, {
         method: "DELETE",

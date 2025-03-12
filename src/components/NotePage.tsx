@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Note } from "@/types";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import RichTextEditor from "./RichTextEditor";
 
 interface NotePageProps {
   note: Note;
@@ -33,6 +34,32 @@ export default function NotePage({
   const [reminderTime, setReminderTime] = useState(note.reminderTime || "");
   const [showReminderPanel, setShowReminderPanel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Extract title from rich text content
+  const extractTitleFromContent = (htmlContent: string) => {
+    // Create a temporary DOM element to parse the HTML
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = htmlContent;
+
+    // Find the first h1 element
+    const h1 = tempDiv.querySelector("h1");
+
+    if (h1) {
+      return h1.textContent || "";
+    }
+
+    return "";
+  };
+
+  const handleContentChange = (htmlContent: string) => {
+    setContent(htmlContent);
+
+    // Extract title from the first H1 in the content
+    const extractedTitle = extractTitleFromContent(htmlContent);
+    if (extractedTitle) {
+      setTitle(extractedTitle);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -137,18 +164,10 @@ export default function NotePage({
       <div className="flex-grow p-6">
         {isEditing ? (
           <div className="space-y-4">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-3xl font-bold bg-transparent border-none outline-none mb-4 text-gray-100"
-              required
-            />
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full min-h-[400px] text-lg bg-transparent border-none outline-none resize-none text-gray-300"
-              required
+            <RichTextEditor
+              content={content}
+              onChange={handleContentChange}
+              autoFocus={true}
             />
           </div>
         ) : (
@@ -160,9 +179,10 @@ export default function NotePage({
                 <span>Updated: {formatDate(note.updatedAt)}</span>
               )}
             </div>
-            <div className="text-lg text-gray-300 whitespace-pre-wrap">
-              {note.content}
-            </div>
+            <div
+              className="prose prose-invert max-w-none text-lg text-gray-300"
+              dangerouslySetInnerHTML={{ __html: note.content }}
+            />
           </div>
         )}
       </div>
@@ -249,18 +269,22 @@ export default function NotePage({
                           ? calendarStatus.status === "loading"
                             ? "bg-gray-600 cursor-not-allowed"
                             : calendarStatus.status === "success"
-                            ? "bg-green-600"
+                            ? "bg-green-600 hover:bg-green-700"
                             : calendarStatus.status === "error"
-                            ? "bg-red-600"
+                            ? "bg-red-600 hover:bg-red-700"
                             : "bg-blue-600 hover:bg-blue-700"
                           : "bg-blue-600 hover:bg-blue-700"
-                      }`}
+                      } text-white transition-colors`}
                     >
                       {calendarStatus.noteId === note.id
                         ? calendarStatus.status === "loading"
                           ? "Adding..."
-                          : calendarStatus.message
-                        : "Add to Google Calendar"}
+                          : calendarStatus.status === "success"
+                          ? "Added to Calendar"
+                          : calendarStatus.status === "error"
+                          ? calendarStatus.message || "Error"
+                          : "Add to Calendar"
+                        : "Add to Calendar"}
                     </button>
                   </div>
                 )}

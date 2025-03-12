@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Note } from "@/types";
 import { useSession } from "next-auth/react";
+import RichTextEditor from "./RichTextEditor";
 
 interface NoteEditorProps {
   note?: Note;
@@ -27,6 +28,22 @@ export default function NoteEditor({
   const [isSaving, setIsSaving] = useState(false);
   const { data: session } = useSession();
 
+  // Extract title from rich text content
+  const extractTitleFromContent = (htmlContent: string) => {
+    // Create a temporary DOM element to parse the HTML
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = htmlContent;
+
+    // Find the first h1 element
+    const h1 = tempDiv.querySelector("h1");
+
+    if (h1) {
+      return h1.textContent || "";
+    }
+
+    return "";
+  };
+
   useEffect(() => {
     if (note) {
       setTitle(note.title || "");
@@ -36,6 +53,16 @@ export default function NoteEditor({
       setShowReminder(!!note.reminderDate || !!note.reminderTime);
     }
   }, [note]);
+
+  const handleContentChange = (htmlContent: string) => {
+    setContent(htmlContent);
+
+    // Extract title from the first H1 in the content
+    const extractedTitle = extractTitleFromContent(htmlContent);
+    if (extractedTitle) {
+      setTitle(extractedTitle);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,22 +94,12 @@ export default function NoteEditor({
   return (
     <div className="note-card max-w-4xl mx-auto shadow-lg">
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
-        <div className="p-6 flex-grow">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Untitled"
-            className="w-full text-3xl font-bold bg-transparent border-none outline-none mb-4 text-gray-100 placeholder-gray-500"
-            required
-          />
-
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Start writing..."
-            className="textarea min-h-[300px] text-lg bg-transparent border-none outline-none"
-            required
+        <div className="flex-grow">
+          {/* Rich Text Editor */}
+          <RichTextEditor
+            content={content}
+            onChange={handleContentChange}
+            autoFocus={isNew}
           />
         </div>
 

@@ -1,5 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+// Helper function to check if a note belongs to the current user
+async function checkNoteOwnership(noteId: string, userEmail: string) {
+  // Get the user from the database
+  const user = await prisma.user.findUnique({
+    where: { email: userEmail },
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  // Check if the note exists and belongs to the user
+  const note = await prisma.note.findUnique({
+    where: {
+      id: noteId,
+    },
+  });
+
+  if (!note || note.userId !== user.id) {
+    return null;
+  }
+
+  return { note, user };
+}
 
 export async function GET(
   request: Request,
@@ -8,18 +35,26 @@ export async function GET(
   try {
     console.log(`GET /api/notes/${params.id} - Fetching note`);
 
-    const note = await prisma.note.findUnique({
-      where: {
-        id: params.id,
-      },
-    });
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
 
-    if (!note) {
-      console.log(`Note with ID ${params.id} not found`);
+    // If no session, return unauthorized
+    if (!session || !session.user?.email) {
+      console.log("Unauthorized attempt to fetch note - No valid session");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the note belongs to the current user
+    const result = await checkNoteOwnership(params.id, session.user.email);
+
+    if (!result) {
+      console.log(
+        `Note with ID ${params.id} not found or doesn't belong to the current user`
+      );
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    return NextResponse.json(note);
+    return NextResponse.json(result.note);
   } catch (error: any) {
     console.error("Error fetching note:", error);
     return NextResponse.json(
@@ -38,6 +73,25 @@ export async function PUT(
 ) {
   try {
     console.log(`PUT /api/notes/${params.id} - Updating note`);
+
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+
+    // If no session, return unauthorized
+    if (!session || !session.user?.email) {
+      console.log("Unauthorized attempt to update note - No valid session");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the note belongs to the current user
+    const result = await checkNoteOwnership(params.id, session.user.email);
+
+    if (!result) {
+      console.log(
+        `Note with ID ${params.id} not found or doesn't belong to the current user`
+      );
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
 
     const body = await request.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
@@ -103,6 +157,25 @@ export async function DELETE(
 ) {
   try {
     console.log(`DELETE /api/notes/${params.id} - Deleting note`);
+
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+
+    // If no session, return unauthorized
+    if (!session || !session.user?.email) {
+      console.log("Unauthorized attempt to delete note - No valid session");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the note belongs to the current user
+    const result = await checkNoteOwnership(params.id, session.user.email);
+
+    if (!result) {
+      console.log(
+        `Note with ID ${params.id} not found or doesn't belong to the current user`
+      );
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
 
     await prisma.note.delete({
       where: {

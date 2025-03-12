@@ -1,6 +1,7 @@
 "use client";
 
 import { Note } from "@/types";
+import { useEffect, useState } from "react";
 
 interface NoteCardProps {
   note: Note;
@@ -21,6 +22,21 @@ export default function NoteCard({
   onAddToCalendar,
   calendarStatus,
 }: NoteCardProps) {
+  const [plainTextContent, setPlainTextContent] = useState("");
+
+  // Extract plain text from HTML content
+  useEffect(() => {
+    if (note.content) {
+      // Create a temporary DOM element to parse the HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = note.content;
+
+      // Get the text content
+      const text = tempDiv.textContent || tempDiv.innerText || "";
+      setPlainTextContent(text);
+    }
+  }, [note.content]);
+
   // Truncate content for preview
   const truncateContent = (content: string, maxLength = 150) => {
     if (content.length <= maxLength) return content;
@@ -50,7 +66,7 @@ export default function NoteCard({
 
         {/* Content preview with Notion-like styling */}
         <p className="text-gray-400 mb-4 text-sm line-clamp-3 font-light">
-          {truncateContent(note.content)}
+          {truncateContent(plainTextContent)}
         </p>
 
         {/* Bottom metadata */}

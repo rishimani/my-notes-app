@@ -5,4 +5,6 @@ export type Note = {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  reminderDate?: string | null;
+  reminderTime?: string | null;
 };

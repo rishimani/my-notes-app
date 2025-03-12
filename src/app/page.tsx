@@ -2,17 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { Note } from "@/types";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Header from "@/components/Header";
+import NoteEditor from "@/components/NoteEditor";
+import NotesList from "@/components/NotesList";
+import Modal from "@/components/Modal";
 
 export default function Home() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [reminderDate, setReminderDate] = useState("");
-  const [reminderTime, setReminderTime] = useState("");
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarUrl, setCalendarUrl] = useState("");
+  const [showReauthModal, setShowReauthModal] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState<{
     noteId: string;
     status: "idle" | "loading" | "success" | "error";
@@ -35,159 +39,70 @@ export default function Home() {
     fetchNotes();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleCreateNote = async (noteData: Partial<Note>) => {
     try {
-      console.log("Submitting form:", {
-        editingNoteId,
-        title,
-        content,
-        reminderDate,
-        reminderTime,
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...noteData,
+          userId: "anonymous", // In a real app, use authenticated user ID
+        }),
       });
 
-      if (editingNoteId) {
-        // Update existing note
-        console.log(`Updating note with ID: ${editingNoteId}`);
-        const response = await fetch(`/api/notes/${editingNoteId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title,
-            content,
-            reminderDate: reminderDate || null,
-            reminderTime: reminderTime || null,
-          }),
-        });
-
-        console.log("Update response status:", response.status);
-
-        // Try to parse the response as JSON
-        let responseData;
-        try {
-          responseData = await response.json();
-          console.log("Update response data:", responseData);
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError);
-          throw new Error("Failed to parse server response");
-        }
-
-        if (!response.ok) {
-          throw new Error(responseData.error || "Failed to update note");
-        }
-
-        setNotes(
-          notes.map((note) => (note.id === editingNoteId ? responseData : note))
-        );
-        setEditingNoteId(null);
-      } else {
-        // Create new note
-        console.log("Creating new note");
-        const response = await fetch("/api/notes", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title,
-            content,
-            reminderDate: reminderDate || null,
-            reminderTime: reminderTime || null,
-            userId: "anonymous", // In a real app, use authenticated user ID
-          }),
-        });
-
-        console.log("Create response status:", response.status);
-
-        // Try to parse the response as JSON
-        let responseData;
-        try {
-          responseData = await response.json();
-          console.log("Create response data:", responseData);
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError);
-          throw new Error("Failed to parse server response");
-        }
-
-        if (!response.ok) {
-          throw new Error(responseData.error || "Failed to create note");
-        }
-
-        setNotes((prevNotes) => [...prevNotes, responseData]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create note");
       }
 
-      // Reset form
-      setTitle("");
-      setContent("");
-      setReminderDate("");
-      setReminderTime("");
+      const newNote = await response.json();
+      setNotes((prevNotes) => [...prevNotes, newNote]);
+
+      // Navigate to the new note
+      router.push(`/notes/${newNote.id}`);
+
+      return Promise.resolve();
     } catch (error: any) {
-      console.error("Error saving note:", error);
-      alert(`Error: ${error.message || "Failed to save note"}`);
+      console.error("Error creating note:", error);
+      return Promise.reject(error);
     }
   };
 
-  const deleteNote = async (id: string) => {
+  const handleDeleteNote = async (id: string) => {
     try {
-      console.log(`Deleting note with ID: ${id}`);
       const response = await fetch(`/api/notes/${id}`, {
         method: "DELETE",
       });
 
-      console.log("Delete response status:", response.status);
-
-      // Try to parse the response as JSON
-      let responseData;
-      try {
-        responseData = await response.json();
-        console.log("Delete response data:", responseData);
-      } catch (parseError) {
-        console.error("Error parsing response:", parseError);
-        throw new Error("Failed to parse server response");
-      }
-
       if (!response.ok) {
-        throw new Error(responseData.error || "Failed to delete note");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete note");
       }
 
-      setNotes(notes.filter((note) => note.id !== id));
+      setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
+      return Promise.resolve();
     } catch (error: any) {
       console.error("Error deleting note:", error);
-      alert(`Error: ${error.message || "Failed to delete note"}`);
+      return Promise.reject(error);
     }
   };
 
-  const editNote = (note: Note) => {
-    setEditingNoteId(note.id);
-    setTitle(note.title);
-    setContent(note.content);
-    setReminderDate(note.reminderDate || "");
-    setReminderTime(note.reminderTime || "");
+  const handleReauthenticate = () => {
+    // Sign out and then sign in again to get fresh permissions
+    signIn("google", {
+      callbackUrl: window.location.origin,
+      prompt: "consent",
+    });
+    setShowReauthModal(false);
   };
 
-  const cancelEdit = () => {
-    setEditingNoteId(null);
-    setTitle("");
-    setContent("");
-    setReminderDate("");
-    setReminderTime("");
-  };
-
-  const addToCalendar = async (noteId: string) => {
+  const handleAddToCalendar = async (noteId: string) => {
     if (!session) {
-      signIn("google");
+      // This will be handled by the Header component's sign-in button
       return;
     }
-
-    console.log(
-      "Session before calendar API call:",
-      session ? "Session exists" : "No session"
-    );
-    console.log("Access token exists:", session?.accessToken ? "Yes" : "No");
-    console.log("User email:", session?.user?.email);
 
     setCalendarStatus({ noteId, status: "loading" });
 
@@ -201,19 +116,7 @@ export default function Home() {
         credentials: "include",
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        console.error("Error parsing response:", e);
-        throw new Error("Failed to parse server response");
-      }
-
-      console.log("Calendar API response:", {
-        status: response.status,
-        ok: response.ok,
-        data,
-      });
+      const data = await response.json();
 
       if (response.ok) {
         setCalendarStatus({
@@ -222,15 +125,21 @@ export default function Home() {
           message: "Added to calendar!",
         });
 
-        // Open the Google Calendar event in a new tab if there's a link
+        // If there's an event link, open it in the modal
         if (data.eventLink) {
-          window.open(data.eventLink, "_blank");
+          setCalendarUrl(data.eventLink);
+          setShowCalendarModal(true);
         }
       } else {
-        // If we get a 401, try to sign in again
-        if (response.status === 401) {
-          console.log("Authentication error, trying to sign in again");
-          signIn("google");
+        // Check if we need to re-authenticate
+        if (data.needsReauth) {
+          setShowReauthModal(true);
+          setCalendarStatus({
+            noteId,
+            status: "error",
+            message: "Need permission",
+          });
+          return;
         }
 
         // Get a more detailed error message
@@ -238,8 +147,6 @@ export default function Home() {
         if (data.details) {
           errorMessage += `: ${data.details}`;
         }
-
-        console.error("Calendar API error details:", data);
 
         setCalendarStatus({
           noteId,
@@ -262,196 +169,91 @@ export default function Home() {
     }, 3000);
   };
 
+  const handleEditNote = (note: Note) => {
+    router.push(`/notes/${note.id}`);
+  };
+
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Notify</h1>
-        <div>
-          {session ? (
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-300">
-                Signed in as {session.user?.email}
-              </span>
+    <div className="min-h-screen bg-gray-950 text-white">
+      <Header />
+
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <div className="space-y-8">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4">Create a New Note</h2>
+            <NoteEditor onSave={handleCreateNote} />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Your Notes</h2>
+            <NotesList
+              notes={notes}
+              onEdit={handleEditNote}
+              onDelete={handleDeleteNote}
+              onAddToCalendar={handleAddToCalendar}
+              calendarStatus={calendarStatus}
+              isLoading={isLoading}
+            />
+          </div>
+        </div>
+      </main>
+
+      <Modal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+        title="Google Calendar Event"
+        url={calendarUrl}
+      />
+
+      {/* Re-authentication Modal */}
+      {showReauthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg shadow-xl max-w-md w-full overflow-hidden">
+            <div className="flex justify-between items-center border-b border-gray-800 p-4">
+              <h3 className="text-lg font-medium text-gray-200">
+                Calendar Permission Required
+              </h3>
               <button
-                onClick={() => signOut()}
-                className="text-sm bg-gray-700 text-white px-3 py-1 rounded-md hover:bg-gray-600"
+                onClick={() => setShowReauthModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
               >
-                Sign Out
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => signIn("google")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              Sign in with Google
-            </button>
-          )}
-        </div>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 p-4 bg-gray-800 rounded-lg border border-gray-700"
-      >
-        <div className="mb-4">
-          <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-200 mb-1"
-          >
-            Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
-        </div>
-
-        <div className="mb-4">
-          <label
-            htmlFor="content"
-            className="block text-sm font-medium text-gray-200 mb-1"
-          >
-            Content
-          </label>
-          <textarea
-            id="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md h-32 text-white focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label
-              htmlFor="reminderDate"
-              className="block text-sm font-medium text-gray-200 mb-1"
-            >
-              Reminder Date
-            </label>
-            <input
-              type="date"
-              id="reminderDate"
-              value={reminderDate}
-              onChange={(e) => setReminderDate(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="reminderTime"
-              className="block text-sm font-medium text-gray-200 mb-1"
-            >
-              Reminder Time
-            </label>
-            <input
-              type="time"
-              id="reminderTime"
-              value={reminderTime}
-              onChange={(e) => setReminderTime(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-          >
-            {editingNoteId ? "Update Note" : "Save Note"}
-          </button>
-          {editingNoteId && (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Your Notes</h2>
-
-        {isLoading ? (
-          <p>Loading notes...</p>
-        ) : notes.length === 0 ? (
-          <p>No notes yet. Create your first note above!</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {notes.map((note) => (
-              <div
-                key={note.id}
-                className="border border-gray-700 bg-gray-800 rounded-lg p-4 shadow-md"
+            <div className="p-6">
+              <p className="text-gray-300 mb-4">
+                To add events to your Google Calendar, you need to grant
+                permission. Please re-authenticate with Google to continue.
+              </p>
+              <button
+                onClick={handleReauthenticate}
+                className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-md transition-colors"
               >
-                <h3 className="text-lg font-medium mb-2 text-white">
-                  {note.title}
-                </h3>
-                <p className="text-gray-300 mb-2">{note.content}</p>
-                {(note.reminderDate || note.reminderTime) && (
-                  <p className="text-gray-400 mb-2">
-                    Reminder: {note.reminderDate} {note.reminderTime}
-                  </p>
-                )}
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => editNote(note)}
-                      className="text-blue-400 hover:text-blue-300"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteNote(note.id)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                {note.reminderDate && note.reminderTime && (
-                  <div className="mt-3 pt-3 border-t border-gray-700">
-                    <button
-                      onClick={() => addToCalendar(note.id)}
-                      disabled={
-                        calendarStatus.noteId === note.id &&
-                        calendarStatus.status === "loading"
-                      }
-                      className={`w-full text-center py-1 rounded-md ${
-                        calendarStatus.noteId === note.id
-                          ? calendarStatus.status === "loading"
-                            ? "bg-gray-600 cursor-not-allowed"
-                            : calendarStatus.status === "success"
-                            ? "bg-green-600"
-                            : calendarStatus.status === "error"
-                            ? "bg-red-600"
-                            : "bg-blue-600 hover:bg-blue-700"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                    >
-                      {calendarStatus.noteId === note.id
-                        ? calendarStatus.status === "loading"
-                          ? "Adding..."
-                          : calendarStatus.message
-                        : "Add to Google Calendar"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
+                </svg>
+                <span>Re-authenticate with Google</span>
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </main>
+        </div>
+      )}
+    </div>
   );
 }

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       if (session.accessToken) {
         console.log("Access token length:", session.accessToken.length);
       }
+      console.log("Scope:", session.scope);
     } else {
       console.log("No session found in API route");
     }
@@ -81,7 +82,10 @@ export async function POST(request: Request) {
     // Set up Google Calendar API
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.NEXTAUTH_URL
+        ? `${process.env.NEXTAUTH_URL}/api/auth/callback/google`
+        : "http://localhost:3000/api/auth/callback/google"
     );
 
     console.log(
@@ -145,10 +149,16 @@ export async function POST(request: Request) {
     };
 
     try {
+      // First, try to get the calendar list to verify permissions
+      const calendarList = await calendar.calendarList.list();
+      console.log("Successfully accessed calendar list");
+
       const result = await calendar.events.insert({
         calendarId: "primary",
         requestBody: event,
       });
+
+      console.log("Event created successfully:", result.data.htmlLink);
 
       return NextResponse.json({
         success: true,
@@ -161,6 +171,27 @@ export async function POST(request: Request) {
       if (error.response) {
         console.error("Error response data:", error.response.data);
         console.error("Error response status:", error.response.status);
+
+        // Check for specific error types
+        if (error.response.status === 403) {
+          console.error("Permission denied. Check OAuth scopes and consent.");
+
+          // If the user needs to re-authenticate
+          return new NextResponse(
+            JSON.stringify({
+              error: "Calendar permission denied",
+              details:
+                "You need to re-authenticate with Google Calendar permissions",
+              needsReauth: true,
+            }),
+            {
+              status: 403,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+        }
       }
 
       return new NextResponse(

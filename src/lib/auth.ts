@@ -17,6 +17,10 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/signin", // Error code passed in query string as ?error=
+  },
   debug: process.env.NODE_ENV === "development",
   callbacks: {
     async jwt({ token, account, user }) {
@@ -28,6 +32,7 @@ export const authOptions: NextAuthOptions = {
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
           expiresAt: account.expires_at ? account.expires_at * 1000 : 0,
+          scope: account.scope,
         };
       }
 
@@ -82,6 +87,7 @@ export const authOptions: NextAuthOptions = {
       // Send properties to the client, like an access_token from a provider
       console.log("Setting session access token from JWT token");
       session.accessToken = token.accessToken;
+      session.scope = token.scope;
       return session;
     },
   },

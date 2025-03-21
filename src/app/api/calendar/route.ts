@@ -38,9 +38,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check for token errors
+    if (session.error) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Authentication error",
+          details:
+            "Your Google authentication has expired. Please sign in again.",
+          needsReauth: true,
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
     if (!session.accessToken) {
       return new NextResponse(
-        JSON.stringify({ error: "Not authenticated - No access token" }),
+        JSON.stringify({
+          error: "Not authenticated - No access token",
+          needsReauth: true,
+        }),
         {
           status: 401,
           headers: {
@@ -209,14 +230,24 @@ export async function POST(request: Request) {
       );
     }
   } catch (error: any) {
-    console.error("Error adding to calendar:", error);
+    console.error("Error in calendar API:", error);
+
+    // Check if error is related to authentication
+    const isAuthError =
+      error.message &&
+      (error.message.includes("Invalid Credentials") ||
+        error.message.includes("invalid_token") ||
+        error.message.includes("invalid_grant") ||
+        error.message.includes("token expired"));
+
     return new NextResponse(
       JSON.stringify({
-        error: "Failed to add to calendar",
-        details: error?.message || "Unknown error",
+        error: "Failed to add event to calendar",
+        details: error.message || "Unknown error",
+        needsReauth: isAuthError,
       }),
       {
-        status: 500,
+        status: isAuthError ? 401 : 500,
         headers: {
           "Content-Type": "application/json",
         },

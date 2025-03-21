@@ -172,7 +172,9 @@ export default function NotePage({
           </div>
         ) : (
           <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-100">{note.title}</h1>
+            <h1 className="text-3xl font-serif font-semibold text-gray-100">
+              {note.title}
+            </h1>
             <div className="flex items-center text-sm text-gray-500 space-x-4">
               <span>Created: {formatDate(note.createdAt)}</span>
               {note.updatedAt !== note.createdAt && (
@@ -217,7 +219,7 @@ export default function NotePage({
 
           {showReminderPanel && (
             <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-4 w-64">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">
+              <h3 className="text-sm font-serif font-semibold text-gray-300 mb-3">
                 Set Reminder
               </h3>
 

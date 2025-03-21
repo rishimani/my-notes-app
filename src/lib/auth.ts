@@ -47,7 +47,12 @@ export const authOptions: NextAuthOptions = {
 
       if (!token.refreshToken) {
         console.log("No refresh token available, cannot refresh");
-        return token;
+        // Clear the invalid token and force re-authentication
+        return {
+          ...token,
+          accessToken: undefined,
+          error: "RefreshTokenNotAvailable",
+        };
       }
 
       try {
@@ -66,21 +71,38 @@ export const authOptions: NextAuthOptions = {
         });
 
         const refreshedTokens = await response.json();
-        console.log("Token refreshed successfully");
 
         if (!response.ok) {
           console.error("Failed to refresh token:", refreshedTokens);
-          return token;
+
+          // Clear the invalid tokens and force re-authentication
+          return {
+            ...token,
+            accessToken: undefined,
+            refreshToken: undefined,
+            error: "RefreshAccessTokenError",
+          };
         }
+
+        console.log("Token refreshed successfully");
 
         return {
           ...token,
           accessToken: refreshedTokens.access_token,
           expiresAt: Date.now() + refreshedTokens.expires_in * 1000,
+          // Update refresh token if provided, else keep the old one
+          refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
         };
       } catch (error) {
         console.error("Error refreshing token:", error);
-        return token;
+
+        // Clear the invalid tokens and force re-authentication
+        return {
+          ...token,
+          accessToken: undefined,
+          refreshToken: undefined,
+          error: "RefreshAccessTokenError",
+        };
       }
     },
     async session({ session, token }) {
@@ -88,11 +110,18 @@ export const authOptions: NextAuthOptions = {
       console.log("Setting session access token from JWT token");
       session.accessToken = token.accessToken;
       session.scope = token.scope;
+      session.error = token.error;
       return session;
     },
   },
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  events: {
+    async signOut({ token }) {
+      // Clear any server-side state when the user signs out
+      console.log("User signed out, clearing token state");
+    },
   },
 };

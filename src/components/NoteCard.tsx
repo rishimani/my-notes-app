@@ -60,7 +60,7 @@ export default function NoteCard({
     >
       <div className="p-5 flex-grow">
         {/* Title with Notion-like styling */}
-        <h3 className="note-title mb-3 group-hover:text-white transition-colors">
+        <h3 className="note-title mb-3 group-hover:text-white transition-colors font-serif font-semibold">
           {note.title}
         </h3>
 

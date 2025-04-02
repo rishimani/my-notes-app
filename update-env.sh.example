@@ -1,0 +1,18 @@
+#!/bin/bash
+
+cat > .env.local << 'EOL'
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET="your-nextauth-secret"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Database
+DATABASE_URL="your-database-url"
+
+# OpenWeather API
+OPENWEATHER_API_KEY="your-openweather-api-key"
+# The key should not be exposed to the client side anymore
+# NEXT_PUBLIC_OPENWEATHER_API_KEY="your-openweather-api-key"
+EOL
+
+echo "Environment file updated successfully!" 

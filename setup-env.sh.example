@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Create .env.local file with necessary environment variables
+cat > .env.local << EOL
+# NextAuth Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET="$(openssl rand -base64 32)"
+
+# Google OAuth 
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+
+# OpenWeather API
+OPENWEATHER_API_KEY="your-openweather-api-key"
+EOL
+
+echo "Created .env.local file with placeholder values."
+echo "Please update the values with your actual credentials."
+echo "You can get Google OAuth credentials from https://console.cloud.google.com/"
+echo "Don't forget to enable the Gmail API in your Google Cloud project!" 

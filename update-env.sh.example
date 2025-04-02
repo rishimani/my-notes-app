@@ -1,18 +1,19 @@
 #!/bin/bash
 
-cat > .env.local << 'EOL'
-NEXTAUTH_URL=http://localhost:3000
+# Create .env.local file with necessary environment variables
+cat > .env.local << EOL
+NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-nextauth-secret"
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
 # Database
-DATABASE_URL="your-database-url"
+DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
 
 # OpenWeather API
 OPENWEATHER_API_KEY="your-openweather-api-key"
-# The key should not be exposed to the client side anymore
-# NEXT_PUBLIC_OPENWEATHER_API_KEY="your-openweather-api-key"
 EOL
 
-echo "Environment file updated successfully!" 
+echo "Created .env.local file with placeholder values."
+echo "Please update the values with your actual credentials."
+echo "Don't forget to enable the Gmail API in your Google Cloud project!" 

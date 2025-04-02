@@ -44,3 +44,4 @@ node_modules
 .next
 .env
 .env.local
+update-env.sh

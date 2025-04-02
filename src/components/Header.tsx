@@ -53,7 +53,7 @@ export default function Header() {
                   <Link
                     href="/notes"
                     className={`text-sm font-medium transition-colors ${
-                      pathname === "/notes" || pathname.startsWith("/notes/")
+                      pathname === "/notes" || pathname?.startsWith("/notes/")
                         ? "text-blue-400"
                         : "text-gray-300 hover:text-white"
                     }`}
@@ -61,6 +61,28 @@ export default function Header() {
                     Notes
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/mail"
+                    className={`text-sm font-medium transition-colors ${
+                      pathname === "/mail"
+                        ? "text-blue-400"
+                        : "text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    Mail
+                  </Link>
+                </li>
+                {pathname === "/mail" && !session?.hasGmailAccess && (
+                  <li>
+                    <Link
+                      href="/auth/gmail-permission"
+                      className="text-sm font-medium text-yellow-500 hover:text-yellow-400 transition-colors"
+                    >
+                      Gmail Permissions
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
           )}

@@ -37,85 +37,20 @@ module.exports = {
           300: "#93c5fd",
         },
       },
-      typography: (theme) => ({
+      typography: {
         DEFAULT: {
           css: {
-            color: theme("colors.gray.300"),
+            maxWidth: "100%",
+            color: "#d1d5db",
             a: {
-              color: theme("colors.blue.400"),
+              color: "#3b82f6",
               "&:hover": {
-                color: theme("colors.blue.300"),
+                color: "#60a5fa",
               },
-            },
-            h1: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            h2: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            h3: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            h4: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            h5: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            h6: {
-              fontFamily: "var(--font-serif)",
-              fontWeight: "600",
-              color: theme("colors.gray.100"),
-            },
-            blockquote: {
-              color: theme("colors.gray.300"),
-              borderLeftColor: theme("colors.gray.700"),
-            },
-            "ul > li::before": {
-              backgroundColor: theme("colors.gray.700"),
-            },
-            "ol > li::before": {
-              color: theme("colors.gray.400"),
-            },
-            hr: {
-              borderColor: theme("colors.gray.800"),
-            },
-            strong: {
-              color: theme("colors.gray.100"),
-            },
-            thead: {
-              color: theme("colors.gray.100"),
-              borderBottomColor: theme("colors.gray.700"),
-            },
-            tbody: {
-              tr: {
-                borderBottomColor: theme("colors.gray.800"),
-              },
-            },
-            code: {
-              color: theme("colors.gray.100"),
-              backgroundColor: theme("colors.gray.800"),
-              padding: "0.25rem 0.5rem",
-              borderRadius: "0.25rem",
-            },
-            pre: {
-              backgroundColor: theme("colors.gray.900"),
-              borderColor: theme("colors.gray.800"),
-              color: theme("colors.gray.100"),
             },
           },
         },
-      }),
+      },
     },
   },
   plugins: [
@@ -124,4 +59,5 @@ module.exports = {
       strategy: "class",
     }),
   ],
+  darkMode: "class",
 };

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "next dev --clear-cache",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

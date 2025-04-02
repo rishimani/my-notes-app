@@ -17,12 +17,15 @@ export default function TimeWeatherWidget() {
 
   // Update time every second
   useEffect(() => {
+    // Set the initial time immediately
+    setCurrentTime(new Date());
+
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
     // Try to get location and fetch weather, otherwise use a fallback
-    if (navigator.geolocation) {
+    if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           fetchWeather(position.coords.latitude, position.coords.longitude);
@@ -148,14 +151,13 @@ export default function TimeWeatherWidget() {
 
   // Format date as "Day, Month DD, YYYY" with a more elegant look
   const formatDate = (date: Date) => {
-    const options = {
-      weekday: "long" as const,
-      year: "numeric" as const,
-      month: "long" as const,
-      day: "numeric" as const,
-    };
-
-    return date.toLocaleDateString(undefined, options);
+    // Use explicit locale and format options to ensure consistency between server and client
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   // Weather icon mapping to cleaner SVG-based icons

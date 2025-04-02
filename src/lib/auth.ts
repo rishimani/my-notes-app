@@ -1,6 +1,11 @@
 import GoogleProvider from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 
+// Scopes needed for the application
+export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+export const BASE_SCOPES = "openid email profile";
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -8,8 +13,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
         params: {
-          scope:
-            "openid email profile https://www.googleapis.com/auth/calendar",
+          scope: `${BASE_SCOPES} ${CALENDAR_SCOPE} ${GMAIL_SCOPE}`,
           prompt: "consent",
           access_type: "offline",
           response_type: "code",
@@ -27,6 +31,14 @@ export const authOptions: NextAuthOptions = {
       // Initial sign in
       if (account && user) {
         console.log("Initial sign in, setting token with account data");
+        console.log("Scope received:", account.scope);
+
+        // Always log the scopes we get to help debug permission issues
+        if (account.scope) {
+          const hasGmail = account.scope.includes(GMAIL_SCOPE);
+          console.log(`Gmail scope granted: ${hasGmail ? "Yes" : "No"}`);
+        }
+
         return {
           ...token,
           accessToken: account.access_token,
@@ -111,6 +123,18 @@ export const authOptions: NextAuthOptions = {
       session.accessToken = token.accessToken;
       session.scope = token.scope;
       session.error = token.error;
+
+      // Check if we have the Gmail scope
+      if (token.scope && typeof token.scope === "string") {
+        session.hasGmailAccess = token.scope.includes(GMAIL_SCOPE);
+        console.log(
+          `Session has Gmail access: ${session.hasGmailAccess ? "Yes" : "No"}`
+        );
+      } else {
+        session.hasGmailAccess = false;
+        console.log("No scope found in token, setting hasGmailAccess to false");
+      }
+
       return session;
     },
   },
